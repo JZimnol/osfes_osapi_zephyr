@@ -1,0 +1,97 @@
+diff --git a/cunit/Headers/CUnit_intl.h b/cunit/Headers/CUnit_intl.h
+index 813917b..de857b8 100644
+--- a/cunit/Headers/CUnit_intl.h
++++ b/cunit/Headers/CUnit_intl.h
+@@ -57,6 +57,9 @@
+ #undef bindtextdomain
+ #define bindtextdomain(Package, Directory)
+ 
++#include <zephyr/sys/printk.h>
++#define fprintf(Module, ...) printk(__VA_ARGS__)
++
+ #endif  /*  CUNIT_CUNIT_INTL_H_SEEN  */
+ 
+ /** @} */
+diff --git a/cunit/Sources/Framework/TestRun.c b/cunit/Sources/Framework/TestRun.c
+index 781abba..2d545db 100644
+--- a/cunit/Sources/Framework/TestRun.c
++++ b/cunit/Sources/Framework/TestRun.c
+@@ -85,6 +85,8 @@
+ #include "Util.h"
+ #include "CUnit_intl.h"
+ 
++#include <zephyr/kernel.h>
++
+ /*=================================================================
+  *  Global/Static Definitions
+  *=================================================================*/
+@@ -324,7 +326,7 @@ unsigned int CU_get_number_of_failure_records(void)
+ double CU_get_elapsed_time(void)
+ {
+   if (CU_TRUE == f_bTestIsRunning) {
+-    return ((double)clock() - (double)f_start_time)/(double)CLOCKS_PER_SEC;
++    return ((double)(k_uptime_get_32()/1000) - (double)f_start_time);
+   }
+   else {
+     return f_run_summary.ElapsedTime;
+@@ -360,7 +362,7 @@ CU_ErrorCode CU_run_all_tests(void)
+   else {
+     /* test run is starting - set flag */
+     f_bTestIsRunning = CU_TRUE;
+-    f_start_time = clock();
++    f_start_time = k_uptime_get_32()/1000;
+ 
+     pSuite = pRegistry->pSuite;
+     while ((NULL != pSuite) && ((CUE_SUCCESS == result) || (CU_get_error_action() == CUEA_IGNORE))) {
+@@ -371,7 +373,7 @@ CU_ErrorCode CU_run_all_tests(void)
+ 
+     /* test run is complete - clear flag */
+     f_bTestIsRunning = CU_FALSE;
+-    f_run_summary.ElapsedTime = ((double)clock() - (double)f_start_time)/(double)CLOCKS_PER_SEC;
++    f_run_summary.ElapsedTime = ((double)(k_uptime_get_32()/1000) - (double)f_start_time);
+ 
+     if (NULL != f_pAllTestsCompleteMessageHandler) {
+      (*f_pAllTestsCompleteMessageHandler)(f_failure_list);
+@@ -396,13 +398,13 @@ CU_ErrorCode CU_run_suite(CU_pSuite pSuite)
+   else {
+     /* test run is starting - set flag */
+     f_bTestIsRunning = CU_TRUE;
+-    f_start_time = clock();
++    f_start_time = k_uptime_get_32()/1000;
+ 
+     result = run_single_suite(pSuite, &f_run_summary);
+ 
+     /* test run is complete - clear flag */
+     f_bTestIsRunning = CU_FALSE;
+-    f_run_summary.ElapsedTime = ((double)clock() - (double)f_start_time)/(double)CLOCKS_PER_SEC;
++    f_run_summary.ElapsedTime = ((double)(k_uptime_get_32()/1000) - (double)f_start_time);
+ 
+     /* run handler for overall completion, if any */
+     if (NULL != f_pAllTestsCompleteMessageHandler) {
+@@ -443,7 +445,7 @@ CU_ErrorCode CU_run_test(CU_pSuite pSuite, CU_pTest pTest)
+   else {
+     /* test run is starting - set flag */
+     f_bTestIsRunning = CU_TRUE;
+-    f_start_time = clock();
++    f_start_time = k_uptime_get_32()/1000;
+ 
+     f_pCurTest = NULL;
+     f_pCurSuite = pSuite;
+@@ -493,7 +495,7 @@ CU_ErrorCode CU_run_test(CU_pSuite pSuite, CU_pTest pTest)
+ 
+     /* test run is complete - clear flag */
+     f_bTestIsRunning = CU_FALSE;
+-    f_run_summary.ElapsedTime = ((double)clock() - (double)f_start_time)/(double)CLOCKS_PER_SEC;
++    f_run_summary.ElapsedTime = ((double)(k_uptime_get_32()/1000) - (double)f_start_time);
+ 
+     /* run handler for overall completion, if any */
+     if (NULL != f_pAllTestsCompleteMessageHandler) {
+@@ -615,7 +617,7 @@ CU_EXPORT char * CU_get_run_results_string(void)
+                           "%*s%*s%*u%*u%*s%*u%*u\n"   /* to change the calculation of */
+                           "%*s%*s%*u%*u%*u%*u%*u\n"   /* len above!                   */
+                           "%*s%*s%*u%*u%*u%*u%*s\n\n"
+-                          "%*s%8.3f%*s",
++                          "%*s%f%*s",
+             width[0], _("Run Summary:"),
+             width[1], _("Type"),
+             width[2], _("Total"),

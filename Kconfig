@@ -1,0 +1,12 @@
+menu "osapi-app"
+
+config OSAPI_WITH_CUNIT
+	bool "Test OSAPI using CUnit"
+	default n
+
+config OSAPI_USE_ZEPHYR
+        bool "Use ZephyrRTOS in OSAPI"
+	default y
+endmenu
+
+source "Kconfig.zephyr"
