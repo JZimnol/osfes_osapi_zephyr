@@ -167,7 +167,9 @@ class Thread : public ThreadInterface {
 
 		const char *state_str = k_thread_state_str(_threadId, buf, 32);
 
-		if (_isBlocked) {
+		if (k_current_get() == _threadId) {
+			ret = RUNNING;
+		} else if (_isBlocked) {
 			ret = BLOCKED;
 		} else if (strstr(state_str, "dead") != nullptr ||
 			   strstr(state_str, "pending+suspended") != nullptr ||

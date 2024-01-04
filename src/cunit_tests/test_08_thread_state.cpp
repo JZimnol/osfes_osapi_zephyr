@@ -37,8 +37,7 @@ void TEST_ThreadStateChecking(void)
 	// wait a while
 	k_msleep(5);
 	// at this point runState should be set to RUNNING state,
-	// but Zephyr does not signal such state
-	CU_ASSERT(osapi::READY == runState);
+	CU_ASSERT(osapi::RUNNING == runState);
 	// at this point thread should be in READY state (inside the while loop)
 	CU_ASSERT(osapi::READY == t.getState());
 	// suspend the thread
