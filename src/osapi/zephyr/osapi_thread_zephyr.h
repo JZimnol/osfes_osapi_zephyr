@@ -12,7 +12,6 @@ class Thread : public ThreadInterface {
 	int _threadPriority;
 	unsigned int _stackSize;
 	Joinable _isJoinable;
-	const char *_threadName;
 	struct k_thread _threadStruct;
 	k_tid_t _threadId;
 	k_thread_stack_t *_threadStack;
@@ -28,9 +27,21 @@ class Thread : public ThreadInterface {
 	Thread(int priority, unsigned int stackSize, Joinable isJoinable,
 	       const char *name = "unnamed")
 		: _threadPriority(priority), _stackSize(stackSize), _isJoinable(isJoinable),
-		  _threadName(name), _threadStruct(), _threadId(nullptr), _threadStack(nullptr),
-		  _isBlocked(false)
+		  _threadStruct(), _threadId(nullptr), _threadStack(nullptr), _isBlocked(false)
 	{
+		_threadStack = k_thread_stack_alloc(_stackSize, 0);
+		if (!_threadStack) {
+			return;
+		}
+
+		_threadId =
+			k_thread_create(&_threadStruct, _threadStack, _stackSize, threadFunction,
+					this, nullptr, nullptr, _threadPriority, 0, K_FOREVER);
+		if (!_threadId) {
+			return;
+		}
+
+		(void)k_thread_name_set(_threadId, name);
 	}
 
 	/** Virtual destructor required to properly destroy derived class objects. */
@@ -51,16 +62,13 @@ class Thread : public ThreadInterface {
 			return false;
 		}
 
-		_threadStack = k_thread_stack_alloc(_stackSize, 0);
-		if (!_threadStack) {
+		if (!_threadId) {
 			return false;
 		}
 
-		_threadId =
-			k_thread_create(&_threadStruct, _threadStack, _stackSize, threadFunction,
-					this, nullptr, nullptr, _threadPriority, 0, K_NO_WAIT);
+		k_thread_start(_threadId);
 
-		return (!!_threadId);
+		return true;
 	}
 
 	/** Checks if the thread is running.
@@ -69,7 +77,8 @@ class Thread : public ThreadInterface {
 	*/
 	virtual bool isRunning()
 	{
-		return (getState() != INACTIVE);
+		ThreadState state = getState();
+		return (state != INACTIVE);
 	}
 
 	/** Waits for the thread to finish executing, with a given timeout.
@@ -143,7 +152,7 @@ class Thread : public ThreadInterface {
 	 */
 	virtual const char *getName()
 	{
-		return _threadName;
+		return k_thread_name_get(_threadId);
 	}
 
 	/** Gets the current state of the thread
@@ -161,7 +170,8 @@ class Thread : public ThreadInterface {
 		if (_isBlocked) {
 			ret = BLOCKED;
 		} else if (strstr(state_str, "dead") != nullptr ||
-			   strstr(state_str, "pending+suspended") != nullptr) {
+			   strstr(state_str, "pending+suspended") != nullptr ||
+			   strstr(state_str, "prestart") != nullptr) {
 			ret = INACTIVE;
 		} else if (strstr(state_str, "pending") != nullptr ||
 			   strstr(state_str, "queued") != nullptr) {
